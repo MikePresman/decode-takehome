@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Sequence
+from datetime import datetime
+from pathlib import Path
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import DateTime, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.data import load_data
 from app.db.models import (
     AppointmentRecord,
     AppointmentServiceRecord,
@@ -17,7 +19,8 @@ from app.db.models import (
 )
 from app.db.session import SessionLocal
 
-STORE = load_data()
+ROOT = Path(__file__).resolve().parent.parent.parent
+SEED_DIR = ROOT / "seed_data"
 
 
 async def _clear_tables(session: AsyncSession) -> None:
@@ -32,93 +35,29 @@ async def _clear_tables(session: AsyncSession) -> None:
         await session.execute(delete(model))
 
 
-def _patient_rows() -> list[PatientRecord]:
-    return [
-        PatientRecord(
-            id=patient.id,
-            first_name=patient.first_name,
-            last_name=patient.last_name,
-            date_of_birth=patient.date_of_birth,
-            gender=patient.gender,
-            address=patient.address,
-            phone=patient.phone,
-            email=patient.email,
-            source=patient.source,
-            created_date=patient.created_date,
-        )
-        for patient in STORE.patients
-    ]
+def _load_seed_rows(filename: str) -> list[dict[str, object]]:
+    path = SEED_DIR / filename
+    with path.open() as handle:
+        return json.load(handle)
 
 
-def _provider_rows() -> list[ProviderRecord]:
-    return [
-        ProviderRecord(
-            id=provider.id,
-            first_name=provider.first_name,
-            last_name=provider.last_name,
-            email=provider.email,
-            phone=provider.phone,
-            created_date=provider.created_date,
-        )
-        for provider in STORE.providers
-    ]
+def _coerce_row(payload: dict[str, object], orm_model: type) -> object:
+    coerced: dict[str, object] = {}
+    for column in orm_model.__table__.columns:
+        if column.name not in payload:
+            continue
+
+        value = payload[column.name]
+        if value is not None and isinstance(column.type, DateTime) and isinstance(value, str):
+            value = datetime.fromisoformat(value)
+
+        coerced[column.name] = value
+
+    return orm_model(**coerced)
 
 
-def _service_rows() -> list[ServiceRecord]:
-    return [
-        ServiceRecord(
-            id=service.id,
-            name=service.name,
-            description=service.description,
-            price=service.price,
-            duration=service.duration,
-            created_date=service.created_date,
-        )
-        for service in STORE.services
-    ]
-
-
-def _appointment_rows() -> list[AppointmentRecord]:
-    return [
-        AppointmentRecord(
-            id=appointment.id,
-            patient_id=appointment.patient_id,
-            status=appointment.status,
-            created_date=appointment.created_date,
-        )
-        for appointment in STORE.appointments
-    ]
-
-
-def _appointment_service_rows() -> list[AppointmentServiceRecord]:
-    return [
-        AppointmentServiceRecord(
-            appointment_id=row.appointment_id,
-            service_id=row.service_id,
-            provider_id=row.provider_id,
-            start=row.start,
-            end=row.end,
-        )
-        for row in STORE.appointment_services
-    ]
-
-
-def _payment_rows() -> list[PaymentRecord]:
-    return [
-        PaymentRecord(
-            id=payment.id,
-            patient_id=payment.patient_id,
-            amount=payment.amount,
-            date=payment.date,
-            method=payment.method,
-            status=payment.status,
-            provider_id=payment.provider_id,
-            appointment_id=payment.appointment_id,
-            service_id=payment.service_id,
-            created_date=payment.created_date,
-        )
-        for payment in STORE.payments
-    ]
+def _rows(filename: str, orm_model: type) -> list[object]:
+    return [_coerce_row(item, orm_model) for item in _load_seed_rows(filename)]
 
 
 async def _bulk_insert(session: AsyncSession, rows: Sequence[object]) -> None:
@@ -130,12 +69,12 @@ async def seed_database() -> dict[str, int]:
     async with SessionLocal() as session:
         await _clear_tables(session)
 
-        await _bulk_insert(session, _patient_rows())
-        await _bulk_insert(session, _provider_rows())
-        await _bulk_insert(session, _service_rows())
-        await _bulk_insert(session, _appointment_rows())
-        await _bulk_insert(session, _appointment_service_rows())
-        await _bulk_insert(session, _payment_rows())
+        await _bulk_insert(session, _rows("patient.json", PatientRecord))
+        await _bulk_insert(session, _rows("provider.json", ProviderRecord))
+        await _bulk_insert(session, _rows("service.json", ServiceRecord))
+        await _bulk_insert(session, _rows("appointment.json", AppointmentRecord))
+        await _bulk_insert(session, _rows("appointment_service.json", AppointmentServiceRecord))
+        await _bulk_insert(session, _rows("payment.json", PaymentRecord))
 
         await session.commit()
 

@@ -17,7 +17,7 @@ The practice wants to answer questions such as:
 
 ## Task Overview
 
-Build a dashboard displaying existing patients from the `seed_data/` directory and their corresponding relationships. See the full data model definition in [`models.py`](./models.py).
+Build a dashboard displaying existing patients from the `seed_data/` directory and their corresponding relationships. The application now uses ORM-first relational models in `app/db/models.py`, with the seed JSON files loaded directly into PostgreSQL.
 
 ### Data Relationships
 
@@ -126,7 +126,8 @@ This repository now includes a minimal FastAPI service so Railway has a real web
 ### Included
 
 - `app/main.py`: FastAPI entrypoint
-- `app/data.py`: in-memory seed-data loader and summary helpers
+- `app/db/models.py`: canonical SQLAlchemy persistence models
+- `app/db/seed_db.py`: seed loader from JSON into PostgreSQL
 - `requirements.txt`: Python dependencies for Railway / Nixpacks
 - `Procfile` and `railway.json`: explicit web start command and healthcheck configuration
 

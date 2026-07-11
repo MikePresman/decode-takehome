@@ -41,6 +41,8 @@ if [[ "${PGHOST:-}" == "localhost" ]]; then
   PGHOST="127.0.0.1"
 fi
 
+FRONTEND_HOST="${FRONTEND_HOST:-127.0.0.1}"
+
 PGDATA_DIR="${PGDATA_DIR:-$ROOT/tmp/postgres}"
 PGLOG_FILE="${PGLOG_FILE:-$ROOT/tmp/postgres.log}"
 VENV_DIR="${VENV_DIR:-$ROOT/.venv}"
@@ -200,7 +202,7 @@ if [[ -f "$ROOT/frontend/package.json" ]]; then
   echo "Starting frontend on $FRONTEND_URL"
   (
     cd "$ROOT/frontend"
-    exec pnpm dev --port "$FRONTEND_PORT"
+    exec pnpm dev --hostname "$FRONTEND_HOST" --port "$FRONTEND_PORT"
   ) &
   FRONTEND_PID=$!
 fi

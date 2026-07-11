@@ -253,24 +253,118 @@ This gives us a pragmatic design:
 - simple enough for analytics queries
 - still compatible with the exact seed payload
 
-## 9. Immediate open questions for the next pass
+## 9. Product-driven answers to the remaining schema questions
 
-These are the right follow-up questions once the low-level shape is accepted:
+These answers should be driven by the actual product requirements:
 
-1. Should `payments` remain one-to-many with `appointments`, or should we enforce one payment per appointment?
-2. Do we want Postgres enums for status/method/source, or plain text plus app-level validation?
-3. Should `appointment_services` use a surrogate key or a composite primary key?
-4. Do we want to preserve the seed IDs as primary keys directly, or add internal UUID/bigint keys and store seed IDs separately?
+- read-only dashboard
+- front-desk patient lookup
+- manager-facing analytics
+- later AI-style arbitrary question answering
+- moderate data volume (`4000` patients, `6000` appointments, `8398` appointment-service rows, `5311` payments)
 
-## 10. Recommended baseline decision
+That combination favors:
 
-If we want the safest path for the take-home, the baseline should be:
+- predictable query shapes
+- simple joins
+- strong constraints where they reflect the seed and the product
+- not over-engineering for write-heavy workflows we do not need
 
-- preserve seed string IDs as primary keys
+### 1. Should `payments` be strictly one per appointment?
+
+Recommended answer:
+- no, allow multiple payments per appointment
+
+Why:
+- this is the safer domain assumption because real med spa workflows can include deposits, follow-up charges, retries, partial collections, and refunds later
+- the seed currently has only one payment per paid appointment, but the schema should not hard-code that as a permanent business rule unless the product explicitly says it
+- the read-only analytics layer can still answer revenue and collection questions cleanly by aggregating payments per appointment, patient, provider, or service
+
+Recommended implementation:
+- keep `payments.appointment_id` as `NOT NULL`
+- do **not** add `UNIQUE (appointment_id)`
+- model `Appointment.payments` as a one-to-many relationship
+- keep `payment.status` so future failed or reversed attempts remain representable
+
+Tradeoff:
+- appointment-level revenue queries must aggregate instead of assuming one row
+- that is a reasonable cost and keeps the schema future-safe
+
+### 2. Should we use Postgres enums or plain text columns first?
+
+Recommended answer:
+- use plain text columns first
+
+Why:
+- plain text is simpler to migrate, seed, inspect, and query while the product is still taking shape
+- the API and ingestion layer can still validate allowed values using Python enums or literal types
+- this keeps Postgres friction lower for the take-home without losing correctness at the application boundary
+
+Tradeoff:
+- the database itself will not enforce category membership unless we add check constraints
+- that is acceptable here because the data is seeded and the app is read-only
+
+### 3. Should `appointment_services` use a surrogate PK or composite PK?
+
+Recommended answer:
+- use a surrogate primary key
+
+Why:
+- `appointment_services` is not a pure join table; it is an association object with business meaning
+- it carries:
+  - `provider_id`
+  - `start_at`
+  - `end_at`
+- it may later become the anchor for more derived relationships:
+  - utilization metrics
+  - service-line notes
+  - per-line revenue allocation
+  - AI explanations about what happened in a visit
+- a surrogate key keeps SQLAlchemy simpler and avoids composite foreign keys if we expand the model
+
+Recommended implementation:
+- `id bigserial primary key`
+- also add `UNIQUE (appointment_id, service_id, provider_id, start_at)`
+
+That preserves natural uniqueness without forcing every downstream reference to carry a multi-column key.
+
+### 4. Should seed IDs remain the primary keys directly?
+
+Recommended answer:
+- yes, preserve seed IDs as the primary keys for this take-home
+
+Why:
+- the system is seed-driven and read-only
+- the IDs are already stable, globally distinct by prefix, and present across all files
+- preserving them makes import logic straightforward
+- preserving them simplifies debugging and data verification because every row can be traced directly back to the original JSON
+- AI-oriented and analytics tooling often benefits from transparent identifiers during development and demos
+
+Tradeoff:
+- text primary keys are a little heavier than internal bigint keys
+- but at this scale the performance cost is negligible compared with the clarity gained
+
+If this became a longer-lived production system with high write volume, internal numeric keys plus external source IDs might be worth revisiting. It is not necessary here.
+
+## 10. Final recommended baseline
+
+Given the actual requirements, the best baseline is:
+
+- preserve seed string IDs as the primary keys
 - use `appointment_services` as a first-class table with a surrogate primary key
-- model `appointments -> payments` as one-to-many in ORM
-- do **not** add a uniqueness constraint on `payments.appointment_id` yet
-- validate seed consistency during import
-- use text columns plus SQLAlchemy/Pydantic enum validation first, then tighten to Postgres enums later if needed
+- allow multiple payments per appointment
+- use plain text columns for categorical fields
+- validate all denormalized payment references during import
+- index around the actual product queries:
+  - patient lookup and sorting
+  - patient source filtering
+  - appointment-to-patient traversal
+  - service/provider analytics
+  - paid revenue queries
 
-This keeps the schema simple, correct, and flexible enough for both the dashboard and the later AI-query discussion.
+This gives us a schema optimized for:
+
+- front-desk search and scanning
+- owner/manager analytics
+- clean aggregation queries
+- a later AI layer that can reason over a well-constrained relational model

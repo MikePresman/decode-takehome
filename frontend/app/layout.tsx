@@ -4,8 +4,8 @@ import { SidebarNav } from "@/components/sidebar-nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Beauty Med Spa Dashboard",
-  description: "Patient operations and analytics dashboard"
+  title: "Beauty Med Spa Analytics",
+  description: "Patients, analytics, and AI-ready intelligence for Beauty Med Spa"
 };
 
 export default function RootLayout({
@@ -15,35 +15,34 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.4),transparent_35%),linear-gradient(180deg,#f7efe4_0%,#f4ede2_100%)]">
-        <div className="grid min-h-screen lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground lg:border-r">
-            <div className="flex h-full flex-col px-6 py-8">
-              <div className="mb-10">
-                <span className="inline-flex rounded-full bg-sidebar-accent px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-sidebar-primary">
-                  Beauty Med Spa
-                </span>
-                <h1 className="mt-4 text-[28px] leading-tight text-sidebar-foreground">
-                  Patient intelligence for front desk and leadership.
-                </h1>
-                <p className="mt-3 text-sm leading-6 text-sidebar-foreground/70">
-                  A calm, operational dashboard for patient management, service
-                  demand, and revenue visibility.
-                </p>
+      <body className="min-h-screen bg-[#f4ebdf] text-foreground antialiased">
+        <div className="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+          <aside className="border-b border-white/6 bg-[#1c1917] lg:min-h-screen lg:border-b-0 lg:border-r lg:border-r-white/6">
+            <div className="flex h-full flex-col px-4 py-5 sm:px-5 lg:px-4">
+              <div className="mb-8 flex items-center gap-3 px-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#c98c42] text-white">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                    <path d="M8 8.5a3.5 3.5 0 0 1 7 0c0 1.2-.6 2.2-1.2 3" />
+                    <path d="M9.5 16.5c.8.9 1.6 1.3 2.5 1.3 2.5 0 4.5-2.6 4.5-5.9" />
+                    <path d="M7 8.5c0 3.5 2 6 5 6" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-[#f1e5d8]">
+                    Beauty Med Spa
+                  </p>
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#73685e]">
+                    Analytics
+                  </p>
+                </div>
               </div>
+
               <SidebarNav />
-              <div className="mt-auto rounded-2xl border border-sidebar-border bg-sidebar-accent p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-sidebar-primary">
-                  Environment
-                </p>
-                <p className="mt-3 text-sm leading-6 text-sidebar-foreground/72">
-                  Next.js frontend, Python backend, PostgreSQL, and Railway deployment.
-                </p>
-              </div>
             </div>
           </aside>
-          <main className="px-5 py-5 sm:px-8 sm:py-8">
-            <div className="mx-auto flex max-w-7xl flex-col gap-6">
+
+          <main className="px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+            <div className="mx-auto flex w-full max-w-[1720px] flex-col gap-6">
               {children}
             </div>
           </main>

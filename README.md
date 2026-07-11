@@ -174,8 +174,22 @@ The service exposes:
 
 Railway should auto-detect this as a Python service from `requirements.txt`. The service binds to `0.0.0.0` and uses Railway's injected `PORT` value.
 
-This is deployment scaffolding, not the full take-home implementation yet. The project still needs:
+This is still partial take-home implementation work. The project now includes relational schema creation, DB-backed async backend queries, and seed-loading utilities, but the frontend still needs to be fully wired to the Postgres-backed API.
 
-- PostgreSQL integration
-- async Python backend architecture
-- seed ingestion into a relational schema
+## Database Commands
+
+Once `DATABASE_URL` points at a running Postgres instance and Python dependencies are installed, the migration-backed flow is:
+
+```bash
+./scripts/db-migrate.sh
+./scripts/db-seed.sh
+```
+
+`db-seed.sh` clears the relational tables in foreign-key-safe order and reloads:
+
+- `patients`
+- `providers`
+- `services`
+- `appointments`
+- `appointment_services`
+- `payments`

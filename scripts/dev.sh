@@ -9,11 +9,6 @@ if ! command -v initdb >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v pip >/dev/null 2>&1; then
-  echo "pip not found. Enter the Nix shell first with 'direnv allow' or 'nix develop'."
-  exit 1
-fi
-
 if ! python -m venv --help >/dev/null 2>&1; then
   echo "python venv module is unavailable. Enter the Nix shell first with 'direnv allow' or 'nix develop'."
   exit 1
@@ -33,9 +28,8 @@ if [[ -f "$ROOT/.envrc.local" ]]; then
 fi
 
 LOCAL_PGUSER="$(id -un)"
-if [[ "${PGUSER:-}" == "postgres" ]]; then
-  PGUSER="$LOCAL_PGUSER"
-fi
+DESIRED_PGUSER="${PGUSER:-beauty_dev}"
+DESIRED_PGPASSWORD="${PGPASSWORD:-$DESIRED_PGUSER}"
 
 if [[ "${PGHOST:-}" == "localhost" ]]; then
   PGHOST="127.0.0.1"
@@ -47,8 +41,6 @@ PGDATA_DIR="${PGDATA_DIR:-$ROOT/tmp/postgres}"
 PGLOG_FILE="${PGLOG_FILE:-$ROOT/tmp/postgres.log}"
 VENV_DIR="${VENV_DIR:-$ROOT/.venv}"
 VENV_PYTHON="$VENV_DIR/bin/python"
-VENV_PIP="$VENV_DIR/bin/pip"
-VENV_UVICORN="$VENV_DIR/bin/uvicorn"
 
 port_is_available() {
   python - "$1" "$2" <<'PY'
@@ -77,17 +69,15 @@ if [[ ! -d "$PGDATA_DIR" ]] && ! port_is_available "$PGHOST" "$PGPORT"; then
   echo "Port $original_port is in use; using $PGPORT for the local Postgres cluster"
 fi
 
-DATABASE_URL="postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}"
-
 if [[ ! -x "$VENV_PYTHON" ]]; then
   echo "Creating local virtual environment in $VENV_DIR"
   python -m venv "$VENV_DIR"
 fi
 
 echo "Installing backend dependencies from requirements.txt"
-"$VENV_PIP" install -r "$ROOT/requirements.txt"
+"$VENV_PYTHON" -m pip install -r "$ROOT/requirements.txt"
 
-if [[ ! -x "$VENV_UVICORN" ]]; then
+if ! "$VENV_PYTHON" -c "import fastapi, sqlalchemy, uvicorn" >/dev/null 2>&1; then
   echo "uvicorn is still unavailable after installing requirements."
   exit 1
 fi
@@ -164,7 +154,7 @@ PY
 
 if [[ ! -d "$PGDATA_DIR" ]]; then
   echo "Initializing local Postgres cluster in $PGDATA_DIR"
-  initdb -D "$PGDATA_DIR" -U "$PGUSER" >/dev/null
+  initdb -D "$PGDATA_DIR" -U "$DESIRED_PGUSER" >/dev/null
   echo "host all all 127.0.0.1/32 trust" >>"$PGDATA_DIR/pg_hba.conf"
 fi
 
@@ -179,13 +169,37 @@ until pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" >/dev/null 2>&1; do
   sleep 1
 done
 
-psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$PGDATABASE'" | grep -q 1 || \
-  createdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" "$PGDATABASE"
+BOOTSTRAP_PGUSER="$DESIRED_PGUSER"
+if ! psql -h "$PGHOST" -p "$PGPORT" -U "$BOOTSTRAP_PGUSER" -d postgres -Atqc "select 1" >/dev/null 2>&1; then
+  BOOTSTRAP_PGUSER="$LOCAL_PGUSER"
+fi
+
+if ! psql -h "$PGHOST" -p "$PGPORT" -U "$BOOTSTRAP_PGUSER" -d postgres -Atqc "select 1" >/dev/null 2>&1; then
+  echo "Could not connect to the local Postgres cluster as '$DESIRED_PGUSER' or '$LOCAL_PGUSER'."
+  exit 1
+fi
+
+if ! psql -h "$PGHOST" -p "$PGPORT" -U "$BOOTSTRAP_PGUSER" -d postgres -Atqc "SELECT 1 FROM pg_roles WHERE rolname = '$DESIRED_PGUSER'" | grep -q 1; then
+  psql -h "$PGHOST" -p "$PGPORT" -U "$BOOTSTRAP_PGUSER" -d postgres -c "CREATE ROLE $DESIRED_PGUSER LOGIN SUPERUSER PASSWORD '$DESIRED_PGPASSWORD'" >/dev/null
+fi
+
+psql -h "$PGHOST" -p "$PGPORT" -U "$DESIRED_PGUSER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$PGDATABASE'" | grep -q 1 || \
+  createdb -h "$PGHOST" -p "$PGPORT" -U "$DESIRED_PGUSER" "$PGDATABASE"
+
+PGUSER="$DESIRED_PGUSER"
+PGPASSWORD="$DESIRED_PGPASSWORD"
+DATABASE_URL="postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}"
+
+echo "Running database migrations"
+(
+  cd "$ROOT"
+  exec "$VENV_PYTHON" -m alembic upgrade head
+)
 
 echo "Starting backend on $BACKEND_URL"
 (
   cd "$ROOT"
-  exec "$VENV_UVICORN" app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload
+  exec "$VENV_PYTHON" -m uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload
 ) &
 BACKEND_PID=$!
 
@@ -208,4 +222,5 @@ if [[ -f "$ROOT/frontend/package.json" ]]; then
 fi
 
 echo "Local stack is running. Press Ctrl+C to stop."
+echo "Postgres: psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE"
 wait

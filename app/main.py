@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, Query
+from fastapi import Depends, FastAPI, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.data import load_data, patient_rows, summary_metrics
+from app.db.dependencies import get_db_session
+from app.services.dashboard import get_metadata, get_patient_rows, get_summary_metrics
 
 
 app = FastAPI(
@@ -18,8 +20,8 @@ async def healthcheck() -> dict[str, str]:
 
 
 @app.get("/api/summary")
-async def get_summary() -> dict[str, object]:
-    return summary_metrics()
+async def get_summary(session: AsyncSession = Depends(get_db_session)) -> dict[str, object]:
+    return await get_summary_metrics(session)
 
 
 @app.get("/api/patients")
@@ -30,38 +32,19 @@ async def get_patients(
     order: str = Query(default="desc", pattern="^(asc|desc)$"),
     limit: int = Query(default=50, ge=1, le=250),
     offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, object]:
-    rows = patient_rows()
-
-    if q:
-        needle = q.lower()
-        rows = [
-            row
-            for row in rows
-            if needle in str(row["full_name"]).lower()
-            or needle in str(row["email"]).lower()
-            or needle in str(row["phone"]).lower()
-        ]
-
-    if source:
-        rows = [row for row in rows if row["source"] == source]
-
-    reverse = order == "desc"
-    rows.sort(key=lambda row: row[sort], reverse=reverse)
-
-    return {
-        "total": len(rows),
-        "limit": limit,
-        "offset": offset,
-        "items": rows[offset : offset + limit],
-    }
+    return await get_patient_rows(
+        session,
+        q=q,
+        source=source,
+        sort=sort,
+        order=order,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @app.get("/api/metadata")
-async def get_metadata() -> dict[str, object]:
-    store = load_data()
-    return {
-        "sources": sorted({patient.source for patient in store.patients}),
-        "service_count": len(store.services),
-        "provider_count": len(store.providers),
-    }
+async def metadata(session: AsyncSession = Depends(get_db_session)) -> dict[str, object]:
+    return await get_metadata(session)

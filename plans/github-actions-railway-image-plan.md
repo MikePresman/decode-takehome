@@ -11,8 +11,8 @@ Add a CI/CD path with three pieces:
 This also needs an explicit production database lifecycle:
 
 4. PostgreSQL service provisioning
-5. controlled Alembic migration execution
-6. one-time seed/import execution for production data bootstrap
+5. controlled Alembic migration execution in Railway
+6. one-time seed/import execution from the Railway backend console
 
 This plan assumes:
 
@@ -125,46 +125,6 @@ Recommended actions:
 - `docker/metadata-action`
 - `docker/build-push-action`
 
-### Workflow 3: `database-ops.yml`
-
-Purpose:
-
-- run production database operations intentionally, not on every image publish
-- keep migrations and seeding separate from application startup
-
-Trigger:
-
-- `workflow_dispatch` only
-
-Recommended inputs:
-
-- `operation`
-  - `migrate`
-  - `seed`
-- `environment`
-  - `production`
-  - optional future `staging`
-
-Recommended jobs:
-
-1. `run-migrations`
-   - only runs when `operation == migrate`
-   - installs backend dependencies
-   - uses production `DATABASE_URL`
-   - runs `python -m alembic upgrade head`
-
-2. `run-seed`
-   - only runs when `operation == seed`
-   - installs backend dependencies
-   - uses production `DATABASE_URL`
-   - runs `python -m app.db.seed_db`
-
-Important:
-
-- `seed` should be treated as a controlled bootstrap or reset operation
-- do not run seed automatically on normal deploys
-- if production data is intended to remain stable after initial import, seeding should be one-time only
-
 ## Production Database Plan
 
 ### A. PostgreSQL database
@@ -194,20 +154,20 @@ Do not:
 
 Recommended production options:
 
-1. manual GitHub Actions workflow (`database-ops.yml`)
+1. Railway custom start command that runs migration before `uvicorn`
 2. Railway one-off command run from the backend image
-3. Railway pre-deploy command only if you want app deploys to always attempt schema advancement
+3. manual external workflow
 
 Best default for this repo:
 
-- use a manual GitHub Actions workflow first
+- use a Railway custom start command that runs Alembic before server startup
 
 Why:
 
-- safer for a take-home and early production
-- clearer audit trail
-- easier to recover from migration mistakes
-- avoids tying every app redeploy to schema mutation
+- keeps schema advancement close to the backend deploy
+- avoids hiding migrations inside Docker build
+- avoids a separate DB ops workflow
+- reflects the Railway behavior actually verified in this repo
 
 ### C. Seeding production
 
@@ -221,7 +181,7 @@ Recommended rule:
 If you ever need to re-seed:
 
 - treat it as a deliberate data reset/import event
-- require a manual trigger
+- require a manual console command
 - verify counts after completion
 
 Because `app.db.seed_db` clears tables before reload, it is not a harmless idempotent background task for a live environment. It is a controlled import/reset tool.
@@ -407,20 +367,22 @@ Needed:
 1. Add Dockerfiles and verify local image builds
 2. Add `test.yml`
 3. Add `publish-images.yml`
-4. Add `database-ops.yml`
-5. Publish images to GHCR manually once
-6. Provision Railway Postgres
-7. Point Railway backend service at the GHCR backend image
-8. Point Railway frontend service at the GHCR frontend image
-9. Run production migrations
-10. Run production seed/import once
-11. Enable Railway image auto updates on the chosen moving tag
-12. Verify a push to `main` produces:
+4. Publish images to GHCR manually once
+5. Provision Railway Postgres
+6. Point Railway backend service at the GHCR backend image
+7. Point Railway frontend service at the GHCR frontend image
+8. Configure Railway backend custom start command to:
+   ```bash
+   sh -lc 'python -m alembic upgrade head && python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'
+   ```
+9. Run production seed/import once from the backend console
+10. Enable Railway image auto updates on the chosen moving tag
+11. Verify a push to `main` produces:
    - green tests
    - new image push
    - Railway redeploy from the new image
 
-13. Verify database-backed endpoints against production data
+12. Verify database-backed endpoints against production data
 
 ## Open Decisions
 
@@ -434,12 +396,12 @@ These should be locked before implementation:
    - public GHCR
    - private GHCR
 3. Migration execution:
+   - Railway custom start command
    - manual Railway command
-   - one-off workflow job
-   - Railway pre-deploy command
+   - external workflow
 4. Production seed execution:
-   - manual one-off workflow
    - Railway one-off command
+   - Railway service console
    - never automatic
 5. Frontend deployment mode:
    - static app behind Node runtime
@@ -453,8 +415,8 @@ For this repo, the most practical default is:
 2. publish `sha-*` and `main` tags
 3. configure Railway services to track the `main` tag
 4. enable Railway image auto updates with an `Anytime` or off-hours maintenance window
-5. keep migrations explicit instead of hiding them inside image startup
-6. keep production seeding manual and one-time only
+5. keep migrations explicit in the verified Railway custom start command
+6. keep production seeding manual and one-time only from the backend console
 
 ## Why Railway Will Pull the Latest Image
 

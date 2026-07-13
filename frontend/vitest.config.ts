@@ -9,9 +9,12 @@ export default defineConfig({
     jsx: "automatic"
   },
   resolve: {
-    alias: {
-      "@": path.resolve(rootDir)
-    }
+    alias: [
+      {
+        find: /^@\//,
+        replacement: `${path.resolve(rootDir)}/`
+      }
+    ]
   },
   test: {
     environment: "jsdom",

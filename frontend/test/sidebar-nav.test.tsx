@@ -32,7 +32,7 @@ describe("SidebarNav", () => {
     const primaryNav = screen.getByRole("navigation", { name: "Primary" });
     expect(within(primaryNav).getByText("Dashboard")).toBeInTheDocument();
     expect(within(primaryNav).getByText("Patients")).toBeInTheDocument();
-    expect(within(primaryNav).getByText("AI Genie")).toBeInTheDocument();
+    expect(within(primaryNav).getByText("AI Analytics")).toBeInTheDocument();
 
     const activeLink = within(primaryNav).getByRole("link", { name: /patients/i });
     expect(activeLink).toHaveAttribute("href", "/patients");

@@ -44,8 +44,8 @@ const primaryItems: NavItem[] = [
     badge: "Focus"
   },
   {
-    href: "/ai-genie",
-    label: "AI Genie",
+    href: "/ai-analytics",
+    label: "AI Analytics",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
         <path d="M12 3.5c1.8 2.7 2.8 5 2.8 7 0 1.3-.4 2.4-1.1 3.3" />

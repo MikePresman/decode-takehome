@@ -45,7 +45,7 @@ describe("PatientTableToolbar", () => {
     expect(replaceMock).toHaveBeenCalledWith("/patients?source=instagram&gender=female&view=group_status");
   });
 
-  it("clears the matching filter when switching to a grouped view", () => {
+  it("persists filters when switching to a grouped view", () => {
     searchParams = new URLSearchParams("source=instagram&status=active&gender=female");
     render(<PatientTableToolbar sources={["instagram", "google"]} />);
 
@@ -53,15 +53,15 @@ describe("PatientTableToolbar", () => {
       target: { value: "group_source" }
     });
 
-    expect(replaceMock).toHaveBeenCalledWith("/patients?status=active&gender=female&view=group_source");
+    expect(replaceMock).toHaveBeenCalledWith("/patients?source=instagram&status=active&gender=female&view=group_source");
   });
 
-  it("hides the source filter while grouped by source", () => {
-    searchParams = new URLSearchParams("view=group_source&gender=female");
+  it("shows active filters as removable chips", () => {
+    searchParams = new URLSearchParams("source=instagram&status=inactive&gender=female");
     render(<PatientTableToolbar sources={["instagram", "google"]} />);
 
-    expect(screen.queryByDisplayValue("All Sources")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("View")).toHaveValue("group_source");
+    expect(screen.getByRole("button", { name: "Source: Instagram ×" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Status: Inactive ×" })).toBeInTheDocument();
   });
 
   it("clears search, filters, and view state", () => {
@@ -71,5 +71,23 @@ describe("PatientTableToolbar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
 
     expect(replaceMock).toHaveBeenCalledWith("/patients");
+  });
+
+  it("removes a single filter through its chip", () => {
+    searchParams = new URLSearchParams("source=instagram&status=inactive&gender=female");
+    render(<PatientTableToolbar sources={["instagram", "google"]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Status: Inactive ×" }));
+
+    expect(replaceMock).toHaveBeenCalledWith("/patients?source=instagram&gender=female");
+  });
+
+  it("shows grouping info when grouping matches an active filter", () => {
+    searchParams = new URLSearchParams("source=google&view=group_source");
+    render(<PatientTableToolbar sources={["instagram", "google"]} />);
+
+    expect(
+      screen.getByText("Grouped by Source · filtered to Google, so only one group is shown.")
+    ).toBeInTheDocument();
   });
 });

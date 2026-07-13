@@ -98,11 +98,11 @@ export function PatientTable({
   const showGrouping = currentView !== "list";
   const viewLabel =
     currentView === "group_status"
-      ? "Group by Status"
+      ? "Grouped by Status"
       : currentView === "group_source"
-        ? "Group by Source"
+        ? "Grouped by Source"
         : currentView === "group_practitioner"
-          ? "Group by Practitioner"
+          ? "Grouped by Practitioner"
           : "List";
 
   return (
@@ -153,12 +153,9 @@ export function PatientTable({
                 {showGrouping ? (
                   <tr className="border-b border-[#eadccc] bg-[#faf6ef] text-sm text-[#725a48]">
                     <td colSpan={9} className="px-6 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-semibold">{group.label}</span>
-                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9a7d67]">
-                          {group.items.length} patient{group.items.length === 1 ? "" : "s"}
-                        </span>
-                      </div>
+                      <span className="font-semibold">
+                        {group.label} · {group.items.length} patient{group.items.length === 1 ? "" : "s"}
+                      </span>
                     </td>
                   </tr>
                 ) : null}

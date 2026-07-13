@@ -129,13 +129,76 @@ describe("PatientTable", () => {
         currentSort="created_date"
         currentOrder="desc"
         currentView="group_status"
-        currentQuery={new URLSearchParams("view=group_status")}
+        currentQuery={new URLSearchParams("view=group_status&status=active")}
       />
     );
 
     expect(screen.getByText(/view/i)).toBeInTheDocument();
     expect(screen.getAllByText("Active")[0]).toBeInTheDocument();
     expect(screen.getAllByText("Never Paid")[0]).toBeInTheDocument();
-    expect(screen.getAllByText("1 patient")[0]).toBeInTheDocument();
+    expect(screen.getByText("Active · 1 patient")).toBeInTheDocument();
+    expect(screen.getByText("Never Paid · 1 patient")).toBeInTheDocument();
+  });
+
+  it("shows correct group counts after filters are applied", () => {
+    render(
+      <PatientTable
+        items={[
+          {
+            id: "pat_123",
+            first_name: "Pat",
+            last_name: "Example",
+            full_name: "Pat Example",
+            email: "pat@example.com",
+            phone: "555-0100",
+            address: "123 Main St",
+            date_of_birth: "1980-01-01",
+            source: "google",
+            gender: "female",
+            created_date: "2025-01-01T00:00:00",
+            appointment_count: 5,
+            paid_appointment_count: 4,
+            lifetime_value_cents: 124500,
+            last_appointment_date: "2025-06-01T00:00:00",
+            last_paid_date: "2025-06-01T00:00:00",
+            days_since_last_appointment: 10,
+            preferred_provider_name: "Dr. Jane Smith",
+            top_service_name: "Botox Injection",
+            status: "active"
+          },
+          {
+            id: "pat_789",
+            first_name: "Jill",
+            last_name: "Ray",
+            full_name: "Jill Ray",
+            email: "jill@example.com",
+            phone: "555-0102",
+            address: "700 Pine St",
+            date_of_birth: "1990-02-01",
+            source: "google",
+            gender: "female",
+            created_date: "2025-03-01T00:00:00",
+            appointment_count: 2,
+            paid_appointment_count: 2,
+            lifetime_value_cents: 50000,
+            last_appointment_date: "2025-05-01T00:00:00",
+            last_paid_date: "2025-05-01T00:00:00",
+            days_since_last_appointment: 15,
+            preferred_provider_name: "Dr. Jane Smith",
+            top_service_name: "Peel",
+            status: "active"
+          }
+        ]}
+        total={2}
+        limit={50}
+        offset={0}
+        currentSort="created_date"
+        currentOrder="desc"
+        currentView="group_source"
+        currentQuery={new URLSearchParams("view=group_source&source=google")}
+      />
+    );
+
+    expect(screen.getByText("Google · 2 patients")).toBeInTheDocument();
   });
 });

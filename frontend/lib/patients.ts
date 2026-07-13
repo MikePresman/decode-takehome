@@ -26,6 +26,11 @@ export type PatientListItem = {
   status: PatientStatus;
 };
 
+export type PatientDrilldownFilters = {
+  service?: string;
+  provider?: string;
+};
+
 export type PatientsResponse = {
   total: number;
   limit: number;
@@ -130,8 +135,64 @@ export function formatLabel(value: string) {
 }
 
 
+function normalizeFilterValue(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+
+export function applyPatientDrilldownFilters(
+  items: PatientListItem[],
+  filters: PatientDrilldownFilters
+) {
+  const service = normalizeFilterValue(filters.service);
+  const provider = normalizeFilterValue(filters.provider);
+
+  return items.filter((item) => {
+    if (service && normalizeFilterValue(item.top_service_name) !== service) {
+      return false;
+    }
+
+    if (provider && normalizeFilterValue(item.preferred_provider_name) !== provider) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+
+export function paginatePatients(items: PatientListItem[], limit: number, offset: number) {
+  return items.slice(offset, offset + limit);
+}
+
+
 export async function getPatients(queryString = "") {
   return fetchJson<PatientsResponse>(`/api/patients${queryString}`);
+}
+
+
+export async function getAllPatientsForDrilldown(baseParams: URLSearchParams) {
+  const firstParams = new URLSearchParams(baseParams.toString());
+  firstParams.set("limit", "250");
+  firstParams.set("offset", "0");
+
+  const firstPage = await getPatients(`?${firstParams.toString()}`);
+  const items = [...firstPage.items];
+
+  for (let offset = firstPage.limit; offset < firstPage.total; offset += firstPage.limit) {
+    const nextParams = new URLSearchParams(baseParams.toString());
+    nextParams.set("limit", String(firstPage.limit));
+    nextParams.set("offset", String(offset));
+    const page = await getPatients(`?${nextParams.toString()}`);
+    items.push(...page.items);
+  }
+
+  return {
+    total: items.length,
+    limit: firstPage.limit,
+    offset: 0,
+    items
+  };
 }
 
 

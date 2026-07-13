@@ -4,7 +4,8 @@ from fastapi import Depends, FastAPI, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.dependencies import get_db_session
-from app.services.dashboard import get_metadata, get_summary_metrics
+from app.services.analytics import get_summary_metrics
+from app.services.dashboard import get_metadata
 from app.services.patients import get_patient_detail, get_patient_rows
 
 

@@ -90,4 +90,21 @@ describe("PatientTableToolbar", () => {
       screen.getByText("Grouped by Source · filtered to Google, so only one group is shown.")
     ).toBeInTheDocument();
   });
+
+  it("shows drill-down filters as removable chips", () => {
+    searchParams = new URLSearchParams("service=botox%20injection&provider=Anthony%20Freeman");
+    render(<PatientTableToolbar sources={["instagram", "google"]} />);
+
+    expect(screen.getByRole("button", { name: "Service: Botox injection ×" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Provider: Anthony Freeman ×" })).toBeInTheDocument();
+  });
+
+  it("removes only the selected drill-down filter chip", () => {
+    searchParams = new URLSearchParams("source=instagram&service=botox%20injection&provider=Anthony%20Freeman");
+    render(<PatientTableToolbar sources={["instagram", "google"]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Service: Botox injection ×" }));
+
+    expect(replaceMock).toHaveBeenCalledWith("/patients?source=instagram&provider=Anthony+Freeman");
+  });
 });

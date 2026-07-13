@@ -53,6 +53,8 @@ function clearSelection(pathname: string, searchParams: URLSearchParams): Route 
   next.delete("status");
   next.delete("gender");
   next.delete("has_payments");
+  next.delete("service");
+  next.delete("provider");
   next.delete("view");
   next.delete("offset");
 
@@ -90,6 +92,8 @@ export function PatientTableToolbar({
   const statusValue = searchParams.get("status") ?? "all";
   const genderValue = searchParams.get("gender") ?? "all";
   const paymentValue = searchParams.get("has_payments") ?? "all";
+  const serviceValue = searchParams.get("service");
+  const providerValue = searchParams.get("provider");
   const viewValue = searchParams.get("view") ?? "list";
   const viewLabel =
     viewValue === "group_status"
@@ -105,6 +109,8 @@ export function PatientTableToolbar({
     statusValue !== "all" ||
     genderValue !== "all" ||
     paymentValue !== "all" ||
+    Boolean(serviceValue) ||
+    Boolean(providerValue) ||
     viewValue !== "list";
   const activeFilters = [
     searchParams.get("q")
@@ -124,6 +130,12 @@ export function PatientTableToolbar({
           key: "has_payments",
           label: paymentValue === "true" ? "Payment State: Has Payments" : "Payment State: No Payments"
         }
+      : null,
+    serviceValue
+      ? { key: "service", label: `Service: ${formatLabel(serviceValue)}` }
+      : null,
+    providerValue
+      ? { key: "provider", label: `Provider: ${providerValue}` }
       : null
   ].filter((value): value is { key: string; label: string } => value !== null);
   const groupingInfo =

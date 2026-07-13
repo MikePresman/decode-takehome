@@ -1,3 +1,5 @@
+"use client";
+
 import { formatCompactCurrency, formatLabel } from "../../lib/analytics";
 
 
@@ -13,12 +15,14 @@ export function AnalyticsRankedList({
   title,
   subtitle,
   items,
-  kind
+  kind,
+  onSelect
 }: {
   title: string;
   subtitle: string;
   items: RankedItem[];
   kind: "service" | "provider";
+  onSelect: (name: string) => void;
 }) {
   const maxRevenue = items.reduce((max, item) => Math.max(max, item.revenue_cents), 0) || 1;
 
@@ -30,7 +34,12 @@ export function AnalyticsRankedList({
       <ol className="mt-8 space-y-6">
         {items.map((item, index) => (
           <li key={item.id}>
-            <div className="flex items-center justify-between gap-4">
+            <button
+              type="button"
+              onClick={() => onSelect(item.name)}
+              aria-label={`View patients for ${item.name}`}
+              className="flex w-full items-center justify-between gap-4 rounded-2xl px-2 py-2 text-left transition-colors duration-200 hover:bg-[#faf6ef] focus:outline-none focus:ring-2 focus:ring-[#d8b17a]"
+            >
               <div className="flex min-w-0 items-center gap-3">
                 <span className="w-5 text-sm font-semibold text-[#d1b49c]">{index + 1}</span>
                 <span className="truncate text-[1.05rem] font-medium text-[#2d2723]">
@@ -45,10 +54,10 @@ export function AnalyticsRankedList({
                   {item.appointment_count} appts
                 </p>
               </div>
-            </div>
+            </button>
             <div className="mt-3 h-2 rounded-full bg-[#efe4d7]">
               <div
-                className="h-2 rounded-full bg-[#c78f46]"
+                className="h-2 rounded-full bg-[#c78f46] transition-all duration-500"
                 style={{ width: `${Math.max((item.revenue_cents / maxRevenue) * 100, 10)}%` }}
               />
             </div>

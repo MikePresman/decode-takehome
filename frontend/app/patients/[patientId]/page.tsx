@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { PatientDetailHeader } from "@/components/patients/patient-detail-header";
 import { PatientDetailSections } from "@/components/patients/patient-detail-sections";
+import { ApiError } from "@/lib/api";
 import { getPatient } from "@/lib/patients";
 
 
@@ -26,10 +27,9 @@ export default async function PatientDetailPage({
       </div>
     );
   } catch (error) {
-    if (error instanceof Error && error.message.includes("404")) {
+    if (error instanceof ApiError && error.status === 404) {
       notFound();
     }
     throw error;
   }
 }
-

@@ -10,6 +10,8 @@ type SearchParams = {
   q?: string;
   source?: string;
   status?: string;
+  gender?: string;
+  has_payments?: string;
   sort?: string;
   order?: string;
   limit?: string;
@@ -92,4 +94,3 @@ export default async function PatientsPage({
     </div>
   );
 }
-

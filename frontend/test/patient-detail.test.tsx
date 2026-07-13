@@ -38,11 +38,17 @@ describe("Patient detail components", () => {
             },
             summary: {
               appointment_count: 5,
+              completed_appointment_count: 3,
+              cancelled_appointment_count: 1,
+              no_show_appointment_count: 1,
               paid_appointment_count: 4,
+              unpaid_appointment_count: 1,
               lifetime_value_cents: 124500,
               last_appointment_date: "2025-06-01T00:00:00",
               last_paid_date: "2025-06-01T00:00:00",
               days_since_last_appointment: 10,
+              days_since_last_payment: 10,
+              last_payment_method: "credit_card",
               preferred_provider_name: "Dr. Jane Smith",
               top_service_name: "Botox Injection",
               status: "active"
@@ -57,10 +63,20 @@ describe("Patient detail components", () => {
                 method: "credit_card",
                 status: "paid",
                 service_id: "svc_1",
-                provider_id: "prv_1"
+                service_name: "Botox Injection",
+                provider_id: "prv_1",
+                provider_name: "Dr. Jane Smith"
               }
             ],
-            recent_appointments: [{ id: "apt_1", created_date: "2025-06-01T00:00:00", status: "confirmed" }]
+            recent_appointments: [
+              {
+                id: "apt_1",
+                created_date: "2025-06-01T00:00:00",
+                status: "confirmed",
+                service_names: ["Botox Injection"],
+                provider_names: ["Dr. Jane Smith"]
+              }
+            ]
           }}
         />
       </>
@@ -71,5 +87,7 @@ describe("Patient detail components", () => {
     expect(screen.getAllByText("Dr. Jane Smith")[0]).toBeInTheDocument();
     expect(screen.getAllByText("Botox Injection")[0]).toBeInTheDocument();
     expect(screen.getByText("$1,245")).toBeInTheDocument();
+    expect(screen.getByText("Unpaid Visits")).toBeInTheDocument();
+    expect(screen.getByText("Credit Card")).toBeInTheDocument();
   });
 });

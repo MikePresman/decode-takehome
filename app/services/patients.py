@@ -323,7 +323,11 @@ async def get_patient_detail(session: AsyncSession, patient_id: str) -> dict[str
             PaymentRecord.status,
             PaymentRecord.service_id,
             PaymentRecord.provider_id,
+            ServiceRecord.name.label("service_name"),
+            func.concat(ProviderRecord.first_name, literal(" "), ProviderRecord.last_name).label("provider_name"),
         )
+        .join(ServiceRecord, ServiceRecord.id == PaymentRecord.service_id)
+        .join(ProviderRecord, ProviderRecord.id == PaymentRecord.provider_id)
         .where(PaymentRecord.patient_id == patient_id)
         .order_by(PaymentRecord.date.desc(), PaymentRecord.id.desc())
         .limit(10)
@@ -339,6 +343,86 @@ async def get_patient_detail(session: AsyncSession, patient_id: str) -> dict[str
         .order_by(AppointmentRecord.created_date.desc(), AppointmentRecord.id.desc())
         .limit(10)
     )
+
+    appointment_status_counts_result = await session.execute(
+        select(
+            AppointmentRecord.status,
+            func.count().label("count"),
+        )
+        .where(AppointmentRecord.patient_id == patient_id)
+        .group_by(AppointmentRecord.status)
+    )
+
+    recent_appointment_rows = [
+        {
+            "id": appointment_id,
+            "created_date": created_date.isoformat(),
+            "status": appointment_status,
+        }
+        for appointment_id, created_date, appointment_status in recent_appointments_result.all()
+    ]
+
+    appointment_ids = [row["id"] for row in recent_appointment_rows]
+    appointment_context_by_id: dict[str, dict[str, list[str]]] = {
+        appointment_id: {"service_names": [], "provider_names": []}
+        for appointment_id in appointment_ids
+    }
+
+    if appointment_ids:
+        appointment_context_result = await session.execute(
+            select(
+                AppointmentServiceRecord.appointment_id,
+                ServiceRecord.name.label("service_name"),
+                func.concat(ProviderRecord.first_name, literal(" "), ProviderRecord.last_name).label("provider_name"),
+            )
+            .join(ServiceRecord, ServiceRecord.id == AppointmentServiceRecord.service_id)
+            .join(ProviderRecord, ProviderRecord.id == AppointmentServiceRecord.provider_id)
+            .where(AppointmentServiceRecord.appointment_id.in_(appointment_ids))
+            .order_by(AppointmentServiceRecord.appointment_id, ServiceRecord.name.asc(), ProviderRecord.last_name.asc())
+        )
+
+        for appointment_id, service_name, provider_name in appointment_context_result.all():
+            context = appointment_context_by_id[appointment_id]
+            if service_name not in context["service_names"]:
+                context["service_names"].append(service_name)
+            if provider_name not in context["provider_names"]:
+                context["provider_names"].append(provider_name)
+
+    appointment_status_counts = {
+        status: count for status, count in appointment_status_counts_result.all()
+    }
+    cancelled_appointment_count = int(appointment_status_counts.get("cancelled", 0))
+    no_show_appointment_count = int(appointment_status_counts.get("no_show", 0))
+    completed_appointment_count = int(appointment_status_counts.get("completed", 0))
+    unpaid_appointment_count = max(int(patient["appointment_count"]) - int(patient["paid_appointment_count"]), 0)
+    last_payment_method = None
+    recent_payment_rows = []
+
+    for payment_id, amount, payment_date, method, payment_status, service_id, provider_id, service_name, provider_name in recent_payments_result.all():
+        recent_payment_rows.append(
+            {
+                "id": payment_id,
+                "amount": amount,
+                "date": payment_date.isoformat(),
+                "method": method,
+                "status": payment_status,
+                "service_id": service_id,
+                "service_name": service_name,
+                "provider_id": provider_id,
+                "provider_name": provider_name,
+            }
+        )
+        if last_payment_method is None and payment_status == "paid":
+            last_payment_method = method
+
+    recent_appointment_rows = [
+        {
+            **row,
+            "service_names": appointment_context_by_id[row["id"]]["service_names"],
+            "provider_names": appointment_context_by_id[row["id"]]["provider_names"],
+        }
+        for row in recent_appointment_rows
+    ]
 
     return {
         "patient": {
@@ -356,11 +440,19 @@ async def get_patient_detail(session: AsyncSession, patient_id: str) -> dict[str
         },
         "summary": {
             "appointment_count": patient["appointment_count"],
+            "completed_appointment_count": completed_appointment_count,
+            "cancelled_appointment_count": cancelled_appointment_count,
+            "no_show_appointment_count": no_show_appointment_count,
             "paid_appointment_count": patient["paid_appointment_count"],
+            "unpaid_appointment_count": unpaid_appointment_count,
             "lifetime_value_cents": patient["lifetime_value_cents"],
             "last_appointment_date": patient["last_appointment_date"],
             "last_paid_date": patient["last_paid_date"],
             "days_since_last_appointment": patient["days_since_last_appointment"],
+            "days_since_last_payment": _days_since(
+                row["last_paid_date"] if isinstance(row["last_paid_date"], (date, datetime)) else None
+            ),
+            "last_payment_method": last_payment_method,
             "preferred_provider_name": patient["preferred_provider_name"],
             "top_service_name": patient["top_service_name"],
             "status": patient["status"],
@@ -373,24 +465,6 @@ async def get_patient_detail(session: AsyncSession, patient_id: str) -> dict[str
             {"provider_id": provider_id, "name": name, "count": count}
             for provider_id, name, count in top_providers_result.all()
         ],
-        "recent_payments": [
-            {
-                "id": payment_id,
-                "amount": amount,
-                "date": payment_date.isoformat(),
-                "method": method,
-                "status": payment_status,
-                "service_id": service_id,
-                "provider_id": provider_id,
-            }
-            for payment_id, amount, payment_date, method, payment_status, service_id, provider_id in recent_payments_result.all()
-        ],
-        "recent_appointments": [
-            {
-                "id": appointment_id,
-                "created_date": created_date.isoformat(),
-                "status": appointment_status,
-            }
-            for appointment_id, created_date, appointment_status in recent_appointments_result.all()
-        ],
+        "recent_payments": recent_payment_rows,
+        "recent_appointments": recent_appointment_rows,
     }

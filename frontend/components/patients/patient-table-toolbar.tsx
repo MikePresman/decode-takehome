@@ -55,6 +55,8 @@ export function PatientTableToolbar({
 
   const sourceValue = searchParams.get("source") ?? "all";
   const statusValue = searchParams.get("status") ?? "all";
+  const genderValue = searchParams.get("gender") ?? "all";
+  const paymentValue = searchParams.get("has_payments") ?? "all";
 
   return (
     <div className="flex flex-col gap-4 border-b border-[#efe4d7] px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
@@ -97,6 +99,34 @@ export function PatientTableToolbar({
             <option value="inactive">Inactive</option>
             <option value="new">New</option>
             <option value="never_paid">Never Paid</option>
+          </select>
+
+          <select
+            value={genderValue}
+            onChange={(event) =>
+              router.replace(updateParams(pathname, new URLSearchParams(searchParams.toString()), "gender", event.target.value))
+            }
+            className="rounded-2xl border border-[#eadccc] bg-white px-4 py-3 text-sm font-medium text-[#5a4b3f]"
+          >
+            <option value="all">All Genders</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="non-binary">Non-binary</option>
+            <option value="other">Other</option>
+          </select>
+
+          <select
+            value={paymentValue}
+            onChange={(event) =>
+              router.replace(
+                updateParams(pathname, new URLSearchParams(searchParams.toString()), "has_payments", event.target.value)
+              )
+            }
+            className="rounded-2xl border border-[#eadccc] bg-white px-4 py-3 text-sm font-medium text-[#5a4b3f]"
+          >
+            <option value="all">All Payment States</option>
+            <option value="true">Has Payments</option>
+            <option value="false">No Payments</option>
           </select>
         </div>
       </div>

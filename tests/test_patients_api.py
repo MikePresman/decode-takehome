@@ -52,7 +52,13 @@ async def test_patient_detail_route(monkeypatch, client: AsyncClient) -> None:
     async def fake_detail(_session, patient_id: str):
         return {
             "patient": {"id": patient_id, "full_name": "Pat Example"},
-            "summary": {"lifetime_value_cents": 12345, "status": "active"},
+            "summary": {
+                "lifetime_value_cents": 12345,
+                "status": "active",
+                "unpaid_appointment_count": 1,
+                "cancelled_appointment_count": 0,
+                "no_show_appointment_count": 0,
+            },
             "top_services": [],
             "top_providers": [],
             "recent_payments": [],
@@ -66,3 +72,4 @@ async def test_patient_detail_route(monkeypatch, client: AsyncClient) -> None:
     assert response.status_code == 200
     assert response.json()["patient"]["id"] == "pat_123"
     assert response.json()["summary"]["status"] == "active"
+    assert response.json()["summary"]["unpaid_appointment_count"] == 1

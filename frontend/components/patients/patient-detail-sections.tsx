@@ -1,4 +1,4 @@
-import { formatCurrency, formatDate, formatLabel, formatRelativeDays, type PatientDetailResponse } from "@/lib/patients";
+import { formatCurrency, formatDate, formatLabel, formatRelativeDays, type PatientDetailResponse } from "../../lib/patients";
 
 
 export function PatientDetailSections({ detail }: { detail: PatientDetailResponse }) {

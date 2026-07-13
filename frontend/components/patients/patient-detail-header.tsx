@@ -1,5 +1,5 @@
-import { formatDate } from "@/lib/patients";
-import { PatientStatusBadge } from "@/components/patients/patient-status-badge";
+import { formatDate } from "../../lib/patients";
+import { PatientStatusBadge } from "./patient-status-badge";
 
 
 export function PatientDetailHeader({
@@ -40,4 +40,3 @@ export function PatientDetailHeader({
     </section>
   );
 }
-

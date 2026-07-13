@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { formatLabel } from "@/lib/patients";
+import { formatLabel } from "../../lib/patients";
 
 
 function updateParams(

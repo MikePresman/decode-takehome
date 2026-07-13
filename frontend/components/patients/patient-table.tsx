@@ -2,8 +2,8 @@ import type { Route } from "next";
 import Link from "next/link";
 import { Fragment } from "react";
 
-import { formatCurrency, formatDate, formatLabel, formatRelativeDays, type PatientListItem } from "@/lib/patients";
-import { PatientStatusBadge } from "@/components/patients/patient-status-badge";
+import { formatCurrency, formatDate, formatLabel, formatRelativeDays, type PatientListItem } from "../../lib/patients";
+import { PatientStatusBadge } from "./patient-status-badge";
 
 
 function initials(name: string) {

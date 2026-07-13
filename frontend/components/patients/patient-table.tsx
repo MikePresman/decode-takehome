@@ -1,7 +1,8 @@
 import type { Route } from "next";
 import Link from "next/link";
+import { Fragment } from "react";
 
-import { formatCurrency, formatDate, formatRelativeDays, type PatientListItem } from "@/lib/patients";
+import { formatCurrency, formatDate, formatLabel, formatRelativeDays, type PatientListItem } from "@/lib/patients";
 import { PatientStatusBadge } from "@/components/patients/patient-status-badge";
 
 
@@ -31,6 +32,7 @@ export function PatientTable({
   offset,
   currentSort,
   currentOrder,
+  currentView,
   currentQuery
 }: {
   items: PatientListItem[];
@@ -39,6 +41,7 @@ export function PatientTable({
   offset: number;
   currentSort: string;
   currentOrder: string;
+  currentView: string;
   currentQuery: URLSearchParams;
 }) {
   const page = Math.floor(offset / limit) + 1;
@@ -59,8 +62,56 @@ export function PatientTable({
     return `?${next.toString()}` as Route;
   }
 
+  function groupConfig(patient: PatientListItem): { key: string; label: string } {
+    switch (currentView) {
+      case "group_status":
+        return { key: patient.status, label: formatLabel(patient.status) };
+      case "group_source":
+        return { key: patient.source, label: formatLabel(patient.source) };
+      case "group_practitioner":
+        return {
+          key: patient.preferred_provider_name ?? "unassigned",
+          label: patient.preferred_provider_name ?? "Unassigned Practitioner"
+        };
+      default:
+        return { key: "all", label: "All Patients" };
+    }
+  }
+
+  const groupedItems = items.reduce<Array<{ key: string; label: string; items: PatientListItem[] }>>((groups, patient) => {
+    const group = groupConfig(patient);
+    const existing = groups.find((entry) => entry.key === group.key);
+
+    if (existing) {
+      existing.items.push(patient);
+      return groups;
+    }
+
+    groups.push({
+      key: group.key,
+      label: group.label,
+      items: [patient]
+    });
+    return groups;
+  }, []);
+
+  const showGrouping = currentView !== "list";
+  const viewLabel =
+    currentView === "group_status"
+      ? "Group by Status"
+      : currentView === "group_source"
+        ? "Group by Source"
+        : currentView === "group_practitioner"
+          ? "Group by Practitioner"
+          : "List";
+
   return (
     <section className="overflow-hidden rounded-[32px] bg-white shadow-[0_0_0_1px_rgba(147,118,88,0.08)]">
+      {showGrouping ? (
+        <div className="border-b border-[#efe4d7] bg-[#fcf8f2] px-6 py-4 text-sm text-[#7f6754]">
+          View <span className="font-semibold text-[#2d2723]">{viewLabel}</span> on the current result set.
+        </div>
+      ) : null}
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead className="sticky top-0 bg-white">
@@ -97,39 +148,55 @@ export function PatientTable({
             </tr>
           </thead>
           <tbody>
-            {items.map((patient) => (
-              <tr key={patient.id} className="border-b border-[#f4eadf] text-[15px]">
-                <td className="px-6 py-5">
-                  <Link href={`/patients/${patient.id}` as Route} className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f1e6d7] text-sm font-semibold text-[#ad845a]">
-                      {initials(patient.full_name)}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-[#2d2723]">{patient.full_name}</p>
-                      <p className="text-sm text-[#9a7d67]">{patient.email}</p>
-                    </div>
-                  </Link>
-                </td>
-                <td className="px-4 py-5 text-[#5a4b3f]">{patient.phone}</td>
-                <td className="px-4 py-5">
-                  <SourceBadge source={patient.source} />
-                </td>
-                <td className="px-4 py-5 text-[#8f7662]">{formatDate(patient.created_date)}</td>
-                <td className="px-4 py-5 font-semibold text-[#2d2723]">{patient.appointment_count}</td>
-                <td className="px-4 py-5 text-[#5a4b3f]">
-                  <div>{formatDate(patient.last_appointment_date)}</div>
-                  <div className="text-xs text-[#9a7d67]">
-                    {formatRelativeDays(patient.days_since_last_appointment)}
-                  </div>
-                </td>
-                <td className="px-4 py-5 font-semibold text-[#2d2723]">
-                  {formatCurrency(patient.lifetime_value_cents)}
-                </td>
-                <td className="px-4 py-5 text-[#5a4b3f]">{patient.preferred_provider_name ?? "—"}</td>
-                <td className="px-6 py-5">
-                  <PatientStatusBadge status={patient.status} />
-                </td>
-              </tr>
+            {groupedItems.map((group) => (
+              <Fragment key={group.key}>
+                {showGrouping ? (
+                  <tr className="border-b border-[#eadccc] bg-[#faf6ef] text-sm text-[#725a48]">
+                    <td colSpan={9} className="px-6 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-semibold">{group.label}</span>
+                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9a7d67]">
+                          {group.items.length} patient{group.items.length === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+                {group.items.map((patient) => (
+                  <tr key={patient.id} className="border-b border-[#f4eadf] text-[15px]">
+                    <td className="px-6 py-5">
+                      <Link href={`/patients/${patient.id}` as Route} className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f1e6d7] text-sm font-semibold text-[#ad845a]">
+                          {initials(patient.full_name)}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#2d2723]">{patient.full_name}</p>
+                          <p className="text-sm text-[#9a7d67]">{patient.email}</p>
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-5 text-[#5a4b3f]">{patient.phone}</td>
+                    <td className="px-4 py-5">
+                      <SourceBadge source={patient.source} />
+                    </td>
+                    <td className="px-4 py-5 text-[#8f7662]">{formatDate(patient.created_date)}</td>
+                    <td className="px-4 py-5 font-semibold text-[#2d2723]">{patient.appointment_count}</td>
+                    <td className="px-4 py-5 text-[#5a4b3f]">
+                      <div>{formatDate(patient.last_appointment_date)}</div>
+                      <div className="text-xs text-[#9a7d67]">
+                        {formatRelativeDays(patient.days_since_last_appointment)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-5 font-semibold text-[#2d2723]">
+                      {formatCurrency(patient.lifetime_value_cents)}
+                    </td>
+                    <td className="px-4 py-5 text-[#5a4b3f]">{patient.preferred_provider_name ?? "—"}</td>
+                    <td className="px-6 py-5">
+                      <PatientStatusBadge status={patient.status} />
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
             ))}
           </tbody>
         </table>

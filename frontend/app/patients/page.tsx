@@ -12,6 +12,7 @@ type SearchParams = {
   status?: string;
   gender?: string;
   has_payments?: string;
+  view?: string;
   sort?: string;
   order?: string;
   limit?: string;
@@ -87,6 +88,7 @@ export default async function PatientsPage({
             offset={patients.offset}
             currentSort={searchParams.sort ?? "created_date"}
             currentOrder={searchParams.order ?? "desc"}
+            currentView={searchParams.view ?? "list"}
             currentQuery={new URLSearchParams(queryString)}
           />
         )}

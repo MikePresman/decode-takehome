@@ -28,6 +28,46 @@ function updateParams(
 }
 
 
+function updateView(pathname: string, searchParams: URLSearchParams, view: string): Route {
+  const next = new URLSearchParams(searchParams);
+
+  if (!view || view === "list") {
+    next.delete("view");
+  } else {
+    next.set("view", view);
+  }
+
+  if (view === "group_source") {
+    next.delete("source");
+  }
+
+  if (view === "group_status") {
+    next.delete("status");
+  }
+
+  next.delete("offset");
+
+  const query = next.toString();
+  return (query ? `${pathname}?${query}` : pathname) as Route;
+}
+
+
+function clearSelection(pathname: string, searchParams: URLSearchParams): Route {
+  const next = new URLSearchParams(searchParams);
+
+  next.delete("q");
+  next.delete("source");
+  next.delete("status");
+  next.delete("gender");
+  next.delete("has_payments");
+  next.delete("view");
+  next.delete("offset");
+
+  const query = next.toString();
+  return (query ? `${pathname}?${query}` : pathname) as Route;
+}
+
+
 export function PatientTableToolbar({
   sources
 }: {
@@ -57,6 +97,16 @@ export function PatientTableToolbar({
   const statusValue = searchParams.get("status") ?? "all";
   const genderValue = searchParams.get("gender") ?? "all";
   const paymentValue = searchParams.get("has_payments") ?? "all";
+  const viewValue = searchParams.get("view") ?? "list";
+  const isGroupedBySource = viewValue === "group_source";
+  const isGroupedByStatus = viewValue === "group_status";
+  const hasActiveSelections =
+    Boolean(searchParams.get("q")) ||
+    sourceValue !== "all" ||
+    statusValue !== "all" ||
+    genderValue !== "all" ||
+    paymentValue !== "all" ||
+    viewValue !== "list";
 
   return (
     <div className="flex flex-col gap-4 border-b border-[#efe4d7] px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
@@ -72,34 +122,38 @@ export function PatientTableToolbar({
         </label>
 
         <div className="flex flex-wrap gap-2">
-          <select
-            value={sourceValue}
-            onChange={(event) =>
-              router.replace(updateParams(pathname, new URLSearchParams(searchParams.toString()), "source", event.target.value))
-            }
-            className="rounded-2xl border border-[#eadccc] bg-white px-4 py-3 text-sm font-medium text-[#5a4b3f]"
-          >
-            <option value="all">All Sources</option>
-            {sources.map((source) => (
-              <option key={source} value={source}>
-                {source}
-              </option>
-            ))}
-          </select>
+          {!isGroupedBySource ? (
+            <select
+              value={sourceValue}
+              onChange={(event) =>
+                router.replace(updateParams(pathname, new URLSearchParams(searchParams.toString()), "source", event.target.value))
+              }
+              className="rounded-2xl border border-[#eadccc] bg-white px-4 py-3 text-sm font-medium text-[#5a4b3f]"
+            >
+              <option value="all">All Sources</option>
+              {sources.map((source) => (
+                <option key={source} value={source}>
+                  {source}
+                </option>
+              ))}
+            </select>
+          ) : null}
 
-          <select
-            value={statusValue}
-            onChange={(event) =>
-              router.replace(updateParams(pathname, new URLSearchParams(searchParams.toString()), "status", event.target.value))
-            }
-            className="rounded-2xl border border-[#eadccc] bg-white px-4 py-3 text-sm font-medium text-[#5a4b3f]"
-          >
-            <option value="all">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="new">New</option>
-            <option value="never_paid">Never Paid</option>
-          </select>
+          {!isGroupedByStatus ? (
+            <select
+              value={statusValue}
+              onChange={(event) =>
+                router.replace(updateParams(pathname, new URLSearchParams(searchParams.toString()), "status", event.target.value))
+              }
+              className="rounded-2xl border border-[#eadccc] bg-white px-4 py-3 text-sm font-medium text-[#5a4b3f]"
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="new">New</option>
+              <option value="never_paid">Never Paid</option>
+            </select>
+          ) : null}
 
           <select
             value={genderValue}
@@ -128,6 +182,33 @@ export function PatientTableToolbar({
             <option value="true">Has Payments</option>
             <option value="false">No Payments</option>
           </select>
+
+          <select
+            aria-label="View"
+            value={viewValue}
+            onChange={(event) =>
+              router.replace(updateView(pathname, new URLSearchParams(searchParams.toString()), event.target.value))
+            }
+            className="rounded-2xl border border-[#eadccc] bg-white px-4 py-3 text-sm font-medium text-[#5a4b3f]"
+          >
+            <option value="list">List</option>
+            <option value="group_status">Group by Status</option>
+            <option value="group_source">Group by Source</option>
+            <option value="group_practitioner">Group by Practitioner</option>
+          </select>
+
+          {hasActiveSelections ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchValue("");
+                router.replace(clearSelection(pathname, new URLSearchParams(searchParams.toString())));
+              }}
+              className="rounded-2xl border border-[#d9c7b5] bg-[#fff7ed] px-4 py-3 text-sm font-semibold text-[#8a5c36]"
+            >
+              Clear
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

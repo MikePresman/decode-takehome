@@ -100,3 +100,5 @@ Thumbs.db
 .cache/
 .parcel-cache/
 tmp/
+!frontend/lib/
+!frontend/lib/*.ts

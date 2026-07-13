@@ -1,5 +1,15 @@
 @import "../styles/index.css";
 
+html {
+  font-size: 60%;
+}
+
+@media (max-width: 1080px) {
+  html {
+    font-size: 72.5%;
+  }
+}
+
 .list {
   margin: 0;
   padding: 0;
